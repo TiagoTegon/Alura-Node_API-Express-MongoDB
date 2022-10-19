@@ -4,6 +4,7 @@ class LivroController {
   static listarLivros = (req, res) => {
     livros.find()
       .populate('autor')
+      .populate('editora')
       .exec((err, livros) => {
       res.status(200).json(livros)
     })
@@ -14,6 +15,7 @@ class LivroController {
 
     livros.findById(id)
     .populate('autor', 'nome')
+    .populate('editora', 'nome')
     .exec((err, livros) => {
       if(err) {
         res.status(400).send({message: `${err} - Id do livro não encontrado!`})
@@ -28,7 +30,7 @@ class LivroController {
 
     livro.save((err) => {
       if(err) {
-        res.status(500).send({message: `${err.message} - falha ao cadastro livro!`})
+        res.status(500).send({message: `${err.message} - falha ao cadastrar livro!`})
       } else {
         res.status(201).send(livro.toJSON())
       }
@@ -59,12 +61,29 @@ class LivroController {
     })
   }
 
-  static listarLivroPorEditora = (req, res) => {
+  static listarLivroPorEditora = async (req, res) => {
     const editora = req.query.editora
 
-    livros.find({'editora': editora}, {}, (err, livros) => {
-      res.status(200).send(livros)
-    })
+    const teste = await livros.aggregate([
+      {
+        $lookup: {
+        from: 'editoras',
+        localField: 'editora',
+        foreignField: '_id',
+        as: 'editora'
+      }},
+      {
+        $unwind: {
+        path: "$editora",
+        preserveNullAndEmptyArrays: true
+      }},
+      {
+        $match: {
+          "editora.nome": editora
+        }
+      }
+    ]).exec()
+   res.status(200).send(teste)
   }
 }
 
